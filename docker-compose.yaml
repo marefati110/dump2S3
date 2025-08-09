@@ -15,6 +15,7 @@ services:
         POSTGRES_VERSION: '17'
     environment:
       SCHEDULE: '@weekly' # optional
+      RUN_BACKUP_ON_START: "true" # optional; run an immediate backup at container start in addition to schedule
       BACKUP_KEEP_DAYS: 7 # optional
       PASSPHRASE: passphrase # optional
       S3_REGION:
