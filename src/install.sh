@@ -9,6 +9,7 @@ apk update
 apk add postgresql-client
 
 apk add aws-cli
+apk add gzip
 
 # install go-cron
 apk add curl

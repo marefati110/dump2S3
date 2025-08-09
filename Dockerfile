@@ -19,8 +19,8 @@ ENV S3_PATH 'backup'
 ENV S3_ENDPOINT ''
 ENV S3_S3V4 'no'
 ENV SCHEDULE ''
-ENV PASSPHRASE ''
 ENV BACKUP_KEEP_DAYS ''
+ENV GZIP_ENABLED 'yes'
 
 ADD src/run.sh run.sh
 ADD src/env.sh env.sh

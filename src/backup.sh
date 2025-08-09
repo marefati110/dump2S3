@@ -34,24 +34,24 @@ s3_uri_base="s3://${S3_BUCKET}/${S3_PREFIX}/${POSTGRES_DATABASE}_${timestamp}.du
 
 local_file="db.dump"
 s3_uri="$s3_uri_base"
+# Gzip compression (default: enabled)
+case "${GZIP_ENABLED:-yes}" in
+  [Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|1)
+    echo "Compressing backup with gzip..."
+    rm -f db.dump.gz
+    gzip -9 -c db.dump > db.dump.gz
+    rm -f db.dump
+    local_file="db.dump.gz"
+    s3_uri="${s3_uri_base}.gz"
+    ;;
+  *)
+    local_file="db.dump"
+    s3_uri="$s3_uri_base"
+    ;;
+esac
 
 echo "Uploading backup to private S3 storage..."
 aws $AWS_ARGS s3 cp "$local_file" "$s3_uri"
 rm "$local_file"
 
 echo "Backup complete."
-
-if [ -n "${BACKUP_KEEP_DAYS:-}" ]; then
-  sec=$((86400 * BACKUP_KEEP_DAYS))
-  date_from_remove=$(date -d "@$(($(date +%s) - sec))" +%Y-%m-%d)
-  backups_query="Contents[?LastModified<='${date_from_remove} 00:00:00'].{Key: Key}"
-
-  echo "Removing old backups from $S3_BUCKET..."
-  aws $AWS_ARGS s3api list-objects \
-    --bucket "${S3_BUCKET}" \
-    --prefix "${S3_PREFIX}" \
-    --query "${backups_query}" \
-    --output text \
-    | xargs -n1 -t -I 'KEY' aws $AWS_ARGS s3 rm s3://"${S3_BUCKET}"/'KEY'
-  echo "Removal complete."
-fi
