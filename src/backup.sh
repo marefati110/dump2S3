@@ -22,8 +22,7 @@ source ./env.sh
 AWS_ARGS="--endpoint-url ${S3_ENDPOINT}"
 
 echo "Creating backup of $POSTGRES_DATABASE database..."
-pg_dump --format=custom \
-        -h "$POSTGRES_HOST" \
+pg_dump -h "$POSTGRES_HOST" \
         -p "$POSTGRES_PORT" \
         -U "$POSTGRES_USER" \
         -d "$POSTGRES_DATABASE" \
