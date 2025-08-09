@@ -54,9 +54,9 @@ docker exec <container name> sh restore.sh <timestamp>
 
 # Development
 ## Build the image locally
-`ALPINE_VERSION` determines Postgres version compatibility. See [`build-and-push-images.yml`](.github/workflows/build-and-push-images.yml) for the latest mapping.
+`POSTGRES_VERSION` determines Postgres version.
 ```sh
-DOCKER_BUILDKIT=1 docker build --build-arg ALPINE_VERSION=3.14 .
+DOCKER_BUILDKIT=1 docker build --build-arg POSTGRES_VERSION=17 .
 ```
 ## Run a simple test environment with Docker Compose
 ```sh
