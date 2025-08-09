@@ -22,6 +22,7 @@ services:
       S3_SECRET_ACCESS_KEY: secret
       S3_BUCKET: my-bucket
       S3_PREFIX: backup
+      S3_ENDPOINT: https://s3.example.com # optional
       POSTGRES_HOST: postgres
       POSTGRES_DATABASE: dbname
       POSTGRES_USER: user
