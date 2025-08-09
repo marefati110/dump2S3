@@ -3,6 +3,44 @@
 set -eu
 set -o pipefail
 
+# Webhook notification helpers (optional)
+FAILED=1
+STEP="init"
+
+send_webhook() {
+  # send_webhook <status> <message> <file>
+  [ -z "${WEBHOOK_URL:-}" ] && return 0
+  status="$1"
+  message="$2"
+  file_name="$3"
+  ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  body='{"status":"'"$status"'","message":"'"$message"'","file":"'"$file_name"'","timestamp":"'"$ts"'"}'
+  if command -v curl >/dev/null 2>&1; then
+    curl -sS -X POST -H "Content-Type: application/json" -d "$body" "${WEBHOOK_URL}" >/dev/null 2>&1 || true
+  elif command -v wget >/dev/null 2>&1; then
+    wget -qO- --header="Content-Type: application/json" --post-data="$body" "${WEBHOOK_URL}" >/dev/null 2>&1 || true
+  else
+    echo "Webhook skipped: no curl/wget available" >&2
+  fi
+}
+
+on_exit() {
+  code=$?
+  if [ "${FAILED}" -ne 0 ]; then
+    # figure out best-guess file name
+    fn=""
+    if [ -n "${s3_uri:-}" ]; then
+      fn=$(basename "$s3_uri") || true
+    elif [ -n "${local_file:-}" ]; then
+      fn=$(basename "$local_file") || true
+    fi
+    send_webhook "error" "Backup failed at step: ${STEP}" "$fn"
+  fi
+  exit $code
+}
+
+trap on_exit EXIT INT TERM
+
 source ./env.sh
 
 # Required environment variables for private S3 storage
@@ -21,6 +59,7 @@ source ./env.sh
 
 AWS_ARGS="--endpoint-url ${S3_ENDPOINT}"
 
+STEP="dump"
 echo "Creating backup of $POSTGRES_DATABASE database..."
 pg_dump -h "$POSTGRES_HOST" \
         -p "$POSTGRES_PORT" \
@@ -37,6 +76,7 @@ s3_uri="$s3_uri_base"
 # Gzip compression (default: enabled)
 case "${GZIP_ENABLED:-yes}" in
   [Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|1)
+  STEP="compress"
     echo "Compressing backup with gzip..."
     rm -f db.dump.gz
     gzip -9 -c db.dump > db.dump.gz
@@ -51,7 +91,10 @@ case "${GZIP_ENABLED:-yes}" in
 esac
 
 echo "Uploading backup to private S3 storage..."
+STEP="upload"
 aws $AWS_ARGS s3 cp "$local_file" "$s3_uri"
 rm "$local_file"
 
 echo "Backup complete."
+FAILED=0
+send_webhook "success" "Backup completed" "$(basename "$s3_uri")"

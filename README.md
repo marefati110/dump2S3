@@ -17,6 +17,8 @@ services:
       SCHEDULE: '@weekly'     # optional
       RUN_BACKUP_ON_START: "true" # optional; if true, do one immediate backup on container start even when SCHEDULE is set
       BACKUP_KEEP_DAYS: 7     # optional
+      GZIP_ENABLED: "yes"     # optional; yes/true/1 to gzip (default), no/false/0 for plain .dump
+      WEBHOOK_URL: https://example.com/webhook # optional; POST success/error JSON here
       S3_REGION: region
       S3_ACCESS_KEY_ID: key
       S3_SECRET_ACCESS_KEY: secret
@@ -32,6 +34,8 @@ services:
 - Images are tagged by the major PostgreSQL version supported: `12`, `13`, `14`, `15` or `16`.
 - The `SCHEDULE` variable determines backup frequency. See go-cron schedules documentation [here](http://godoc.org/github.com/robfig/cron#hdr-Predefined_schedules). Omit to run a single backup immediately and then exit.
 - Set `RUN_BACKUP_ON_START` to true/yes/1 to run an immediate backup on container start in addition to the schedule.
+- Backups are gzip-compressed by default and stored as `<db>_<timestamp>.dump.gz`. Set `GZIP_ENABLED` to `no` to disable compression.
+- If `WEBHOOK_URL` is set, a POST with JSON `{status, message, file, timestamp}` is sent on success and on any error.
 - Run `docker exec <container name> sh backup.sh` to trigger a backup ad-hoc.
 - If `BACKUP_KEEP_DAYS` is set, backups older than this many days will be deleted from S3.
 - Set `S3_ENDPOINT` if you're using a non-AWS S3-compatible storage provider.
@@ -52,6 +56,8 @@ docker exec <container name> sh restore.sh
 ```sh
 docker exec <container name> sh restore.sh <timestamp>
 ```
+
+Restore auto-detects `.dump.gz` and `.dump`. Compressed backups are decompressed automatically before restore.
 
 # Development
 ## Build the image locally
