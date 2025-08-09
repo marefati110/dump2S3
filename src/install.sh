@@ -8,9 +8,6 @@ apk update
 # install pg_dump
 apk add postgresql-client
 
-# install gpg
-apk add gnupg
-
 apk add aws-cli
 
 # install go-cron
