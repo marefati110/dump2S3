@@ -11,13 +11,13 @@ Supports multiple PostgreSQL versions and flexible scheduling.
 ```yaml
 services:
   postgres:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
 
   backup:
-    image: marefati110/dump2s3:17
+    image: marefati110/dump2s3:v17
     environment:
       SCHEDULE: '@weekly'               # optional: backup frequency
       RUN_BACKUP_ON_START: "true"       # optional: run a backup immediately on start
@@ -70,14 +70,13 @@ services:
 | `0 23 * * 5`     | Every Friday at 23:00 UTC          |
 
 
-🔔 Webhook Callback
+## Webhook Callback
 If WEBHOOK_URL is set, the container will send an HTTP POST request after every backup attempt — both success and failure.
 
 Request body example:
 
-json
-Copy
-Edit
+
+```json
 {
   "status": "success",        // "success" or "error"
   "message": "Backup completed successfully",
@@ -86,33 +85,4 @@ Edit
   "host": "postgres",
   "timestamp": "2025-08-10T12:00:00Z"
 }
-Fields:
-
-status – "success" or "error".
-
-message – Short description of the result.
-
-file – Backup file name stored in S3.
-
-database – Name of the PostgreSQL database.
-
-host – Hostname or IP of the PostgreSQL server.
-
-timestamp – UTC time when the backup finished.
-
-Example curl:
-
-sh
-Copy
-Edit
-curl -X POST https://example.com/webhook \
-  -H "Content-Type: application/json" \
-  -d '{
-        "status": "success",
-        "message": "Backup completed successfully",
-        "file": "mydb_2025-08-10_120000.dump.gz",
-        "database": "mydb",
-        "host": "postgres",
-        "timestamp": "2025-08-10T12:00:00Z"
-      }'
-
+```
