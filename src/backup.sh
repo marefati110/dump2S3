@@ -14,7 +14,7 @@ send_webhook() {
   message="$2"
   file_name="$3"
   ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-  body='{"status":"'"$status"'","message":"'"$message"'","file":"'"$file_name"'","timestamp":"'"$ts"'"}'
+  body='{"status":"'"$status"'","message":"'"$message"'","file":"'"$file_name"'","database":"'"${POSTGRES_DATABASE:-}"'","host":"'"${POSTGRES_HOST:-}"'","timestamp":"'"$ts"'"}'
   if command -v curl >/dev/null 2>&1; then
     curl -sS -X POST -H "Content-Type: application/json" -d "$body" "${WEBHOOK_URL}" >/dev/null 2>&1 || true
   elif command -v wget >/dev/null 2>&1; then

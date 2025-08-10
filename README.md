@@ -1,8 +1,13 @@
-# Introduction
-This project provides Docker images to periodically back up a PostgreSQL database to AWS S3, and to restore from the backup as needed.
+# 🐘 PostgreSQL to S3 Backup (Docker)
 
-# Usage
-## Backup
+A lightweight Docker image to **periodically back up a PostgreSQL database to AWS S3** (or any S3-compatible storage).  
+Supports multiple PostgreSQL versions and flexible scheduling.
+
+---
+
+## 🚀 Usage
+
+### Example `docker-compose.yml`
 ```yaml
 services:
   postgres:
@@ -12,82 +17,102 @@ services:
       POSTGRES_PASSWORD: password
 
   backup:
-    image: /marefati110/dump2s3:17
+    image: marefati110/dump2s3:17
     environment:
-      SCHEDULE: '@weekly'     # optional
-      RUN_BACKUP_ON_START: "true" # optional; if true, do one immediate backup on container start even when SCHEDULE is set
-      BACKUP_KEEP_DAYS: 7     # optional
-      GZIP_ENABLED: "yes"     # optional; yes/true/1 to gzip (default), no/false/0 for plain .dump
-      WEBHOOK_URL: https://example.com/webhook # optional; POST success/error JSON here
+      SCHEDULE: '@weekly'               # optional: backup frequency
+      RUN_BACKUP_ON_START: "true"       # optional: run a backup immediately on start
+      BACKUP_KEEP_DAYS: 7               # optional: delete old backups from S3
+      GZIP_ENABLED: "yes"               # optional: yes/true/1 (default) or no/false/0
+      WEBHOOK_URL: https://example.com/webhook # optional: POST status JSON here
       S3_REGION: region
       S3_ACCESS_KEY_ID: key
       S3_SECRET_ACCESS_KEY: secret
       S3_BUCKET: my-bucket
       S3_PREFIX: backup
-      S3_ENDPOINT: https://s3.example.com # optional
+      S3_ENDPOINT: https://s3.example.com # optional: for non-AWS S3 storage
       POSTGRES_HOST: postgres
       POSTGRES_DATABASE: dbname
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
 ```
 
-- Images are tagged by the major PostgreSQL version supported: `12`, `13`, `14`, `15` or `16`.
-- The `SCHEDULE` variable determines backup frequency. See go-cron schedules documentation [here](http://godoc.org/github.com/robfig/cron#hdr-Predefined_schedules). Omit to run a single backup immediately and then exit.
-- Set `RUN_BACKUP_ON_START` to true/yes/1 to run an immediate backup on container start in addition to the schedule.
-- Backups are gzip-compressed by default and stored as `<db>_<timestamp>.dump.gz`. Set `GZIP_ENABLED` to `no` to disable compression.
-- If `WEBHOOK_URL` is set, a POST with JSON `{status, message, file, timestamp}` is sent on success and on any error.
-- Run `docker exec <container name> sh backup.sh` to trigger a backup ad-hoc.
-- If `BACKUP_KEEP_DAYS` is set, backups older than this many days will be deleted from S3.
-- Set `S3_ENDPOINT` if you're using a non-AWS S3-compatible storage provider.
 
-## Restore
-> [!CAUTION]
-> DATA LOSS! All database objects will be dropped and re-created.
+| Variable               | Required | Default | Description                                                     |
+| ---------------------- | -------- | ------- | --------------------------------------------------------------- |
+| `SCHEDULE`             | ❌        | —       | Backup frequency (see [Schedule Examples](#-schedule-examples)) |
+| `RUN_BACKUP_ON_START`  | ❌        | `false` | Run an immediate backup on container start                      |
+| `BACKUP_KEEP_DAYS`     | ❌        | —       | Delete backups older than N days from S3                        |
+| `GZIP_ENABLED`         | ❌        | `yes`   | Compress backup (`yes`/`true`/`1`) or store plain dump          |
+| `WEBHOOK_URL`          | ❌        | —       | Send POST request with backup result                            |
+| `S3_REGION`            | ✅        | —       | S3 region                                                       |
+| `S3_ACCESS_KEY_ID`     | ✅        | —       | S3 access key                                                   |
+| `S3_SECRET_ACCESS_KEY` | ✅        | —       | S3 secret key                                                   |
+| `S3_BUCKET`            | ✅        | —       | Target S3 bucket                                                |
+| `S3_PREFIX`            | ✅        | —       | Path/prefix for storing backups                                 |
+| `S3_ENDPOINT`          | ❌        | —       | Custom S3 endpoint (for MinIO, etc.)                            |
+| `POSTGRES_HOST`        | ✅        | —       | PostgreSQL server hostname                                      |
+| `POSTGRES_DATABASE`    | ✅        | —       | Database name                                                   |
+| `POSTGRES_USER`        | ✅        | —       | Database username                                               |
+| `POSTGRES_PASSWORD`    | ✅        | —       | Database password                                               |
 
-### ... from latest backup
-```sh
-docker exec <container name> sh restore.sh
-```
 
-> [!NOTE]
-> If your bucket has more than a 1000 files, the latest may not be restored -- only one S3 `ls` command is used
 
-### ... from specific backup
-```sh
-docker exec <container name> sh restore.sh <timestamp>
-```
+| Value            | Meaning                            |
+| ---------------- | ---------------------------------- |
+| `@hourly`        | Every hour at minute 0             |
+| `@daily`         | Every day at midnight              |
+| `@weekly`        | Every Sunday at midnight           |
+| `@monthly`       | First day of the month at midnight |
+| `@every 2h`      | Every 2 hours from container start |
+| `0 2 * * *`      | Every day at 02:00 UTC             |
+| `0 */15 * * * *` | Every 15 minutes                   |
+| `30 3 * * 1-5`   | Weekdays (Mon–Fri) at 03:30 UTC    |
+| `0 23 * * 5`     | Every Friday at 23:00 UTC          |
 
-Restore auto-detects `.dump.gz` and `.dump`. Compressed backups are decompressed automatically before restore.
 
-# Development
-## Build the image locally
-`POSTGRES_VERSION` determines Postgres version.
-```sh
-DOCKER_BUILDKIT=1 docker build --build-arg POSTGRES_VERSION=17 .
-```
-## Run a simple test environment with Docker Compose
-```sh
-cp template.env .env
-# fill out your secrets/params in .env
-docker compose up -d
-```
+🔔 Webhook Callback
+If WEBHOOK_URL is set, the container will send an HTTP POST request after every backup attempt — both success and failure.
 
-# Acknowledgements
-This project is a fork and re-structuring of @schickling's [postgres-backup-s3](https://github.com/schickling/dockerfiles/tree/master/postgres-backup-s3) and [postgres-restore-s3](https://github.com/schickling/dockerfiles/tree/master/postgres-restore-s3).
+Request body example:
 
-## Fork goals
-These changes would have been difficult or impossible merge into @schickling's repo or similarly-structured forks.
-  - dedicated repository
-  - automated builds
-  - support multiple PostgreSQL versions
-  - backup and restore with one image
+json
+Copy
+Edit
+{
+  "status": "success",        // "success" or "error"
+  "message": "Backup completed successfully",
+  "file": "dbname_2025-08-10_120000.dump.gz",
+  "database": "dbname",
+  "host": "postgres",
+  "timestamp": "2025-08-10T12:00:00Z"
+}
+Fields:
 
-## Other changes and features
-  - some environment variables renamed or removed
-  - uses `pg_dump`'s `custom` format (see [docs](https://www.postgresql.org/docs/10/app-pgdump.html))
-  - drop and re-create all database objects on restore
-  - backup blobs and all schemas by default
-  - no Python 2 dependencies
-  - filter backups on S3 by database name
-  - support for restoring from a specific backup by timestamp
-  - support for auto-removal of old backups
+status – "success" or "error".
+
+message – Short description of the result.
+
+file – Backup file name stored in S3.
+
+database – Name of the PostgreSQL database.
+
+host – Hostname or IP of the PostgreSQL server.
+
+timestamp – UTC time when the backup finished.
+
+Example curl:
+
+sh
+Copy
+Edit
+curl -X POST https://example.com/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+        "status": "success",
+        "message": "Backup completed successfully",
+        "file": "mydb_2025-08-10_120000.dump.gz",
+        "database": "mydb",
+        "host": "postgres",
+        "timestamp": "2025-08-10T12:00:00Z"
+      }'
+
