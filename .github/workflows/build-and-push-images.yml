@@ -46,7 +46,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ github.repository }}:v${{ matrix.postgres }}
+          tags: ${{ github.repository }}:pg-${{ matrix.postgres }}
           build-args: |
             POSTGRES_VERSION=${{ matrix.postgres }}
           platforms: linux/amd64,linux/arm64

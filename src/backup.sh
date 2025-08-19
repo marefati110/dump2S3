@@ -69,10 +69,8 @@ pg_dump -h "$POSTGRES_HOST" \
         > db.dump
 
 timestamp=$(date +"%Y-%m-%dT%H:%M:%S")
-s3_uri_base="s3://${S3_BUCKET}/${S3_PREFIX}/${POSTGRES_DATABASE}_${timestamp}.dump"
 
 local_file="db.dump"
-s3_uri="$s3_uri_base"
 # Gzip compression (default: enabled)
 case "${GZIP_ENABLED:-yes}" in
   [Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|1)
@@ -82,13 +80,42 @@ case "${GZIP_ENABLED:-yes}" in
     gzip -9 -c db.dump > db.dump.gz
     rm -f db.dump
     local_file="db.dump.gz"
-    s3_uri="${s3_uri_base}.gz"
     ;;
   *)
     local_file="db.dump"
-    s3_uri="$s3_uri_base"
     ;;
 esac
+
+# Build final S3 object key using optional template
+ext_final=".dump"
+if [ "$local_file" = "db.dump.gz" ]; then
+  ext_final=".dump.gz"
+fi
+
+filename_template="${BACKUP_FILENAME_TEMPLATE:-}"
+if [ -n "$filename_template" ]; then
+  used_ext="no"
+  case "$filename_template" in
+    *"{ext}"*) used_ext="yes" ;;
+  esac
+  # substitute placeholders
+  name=$(printf '%s' "$filename_template" \
+    | sed -e "s|{database}|$POSTGRES_DATABASE|g" \
+          -e "s|{db}|$POSTGRES_DATABASE|g" \
+          -e "s|{timestamp}|$timestamp|g" \
+          -e "s|{host}|$POSTGRES_HOST|g" \
+          -e "s|{ext}|$ext_final|g")
+  if [ "$used_ext" = "no" ]; then
+    case "$name" in
+      *.dump|*.dump.gz) : ;; 
+      *) name="${name}${ext_final}" ;;
+    esac
+  fi
+else
+  name="${POSTGRES_DATABASE}_${timestamp}${ext_final}"
+fi
+
+s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${name}"
 
 echo "Uploading backup to private S3 storage..."
 STEP="upload"

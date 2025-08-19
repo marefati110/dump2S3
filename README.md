@@ -24,6 +24,7 @@ services:
       BACKUP_KEEP_DAYS: 7               # optional: delete old backups from S3
       GZIP_ENABLED: "yes"               # optional: yes/true/1 (default) or no/false/0
       WEBHOOK_URL: https://example.com/webhook # optional: POST status JSON here
+      BACKUP_FILENAME_TEMPLATE: "{db}_{timestamp}{ext}" # optional: customize final filename
       S3_REGION: region
       S3_ACCESS_KEY_ID: key
       S3_SECRET_ACCESS_KEY: secret
@@ -44,6 +45,7 @@ services:
 | `BACKUP_KEEP_DAYS`     | ❌        | —       | Delete backups older than N days from S3                        |
 | `GZIP_ENABLED`         | ❌        | `yes`   | Compress backup (`yes`/`true`/`1`) or store plain dump          |
 | `WEBHOOK_URL`          | ❌        | —       | Send POST request with backup result                            |
+| `BACKUP_FILENAME_TEMPLATE` | ❌    | —       | Template for final object name; supports `{db}`/`{database}`, `{timestamp}`, `{host}`, `{ext}` |
 | `S3_REGION`            | ✅        | —       | S3 region                                                       |
 | `S3_ACCESS_KEY_ID`     | ✅        | —       | S3 access key                                                   |
 | `S3_SECRET_ACCESS_KEY` | ✅        | —       | S3 secret key                                                   |
@@ -115,4 +117,23 @@ curl -X POST https://example.com/webhook \
         "host": "postgres",
         "timestamp": "2025-08-10T12:00:00Z"
       }'
+
+### 📄 Custom backup filename
+
+Control the final uploaded object name with `BACKUP_FILENAME_TEMPLATE`.
+
+Placeholders:
+- `{db}` or `{database}` – database name
+- `{timestamp}` – UTC timestamp used in default naming
+- `{host}` – PostgreSQL host
+- `{ext}` – `.dump` or `.dump.gz` depending on compression
+
+Examples:
+- Default pattern explicitly: `{db}_{timestamp}{ext}`
+- Static latest name with proper extension: `latest{ext}` → `latest.dump.gz` when gzip is enabled
+- Fully static name (no placeholder): `latest.dump` (always `.dump`, even if gzip is enabled)
+
+Notes:
+- If you omit `{ext}`, the script appends the correct extension automatically unless your template already ends with `.dump` or `.dump.gz`.
+- To track compression mode automatically in the name, include `{ext}`.
 
