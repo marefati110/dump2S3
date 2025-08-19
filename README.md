@@ -11,13 +11,13 @@ Supports multiple PostgreSQL versions and flexible scheduling.
 ```yaml
 services:
   postgres:
-    image: postgres:16
+    image: postgres:17
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
 
   backup:
-    image: marefati110/dump2s3:17
+    image: marefati110/dump2s3:v17
     environment:
       SCHEDULE: '@weekly'               # optional: backup frequency
       RUN_BACKUP_ON_START: "true"       # optional: run a backup immediately on start
@@ -72,14 +72,13 @@ services:
 | `0 23 * * 5`     | Every Friday at 23:00 UTC          |
 
 
-🔔 Webhook Callback
+## Webhook Callback
 If WEBHOOK_URL is set, the container will send an HTTP POST request after every backup attempt — both success and failure.
 
 Request body example:
 
-json
-Copy
-Edit
+
+```json
 {
   "status": "success",        // "success" or "error"
   "message": "Backup completed successfully",
@@ -137,3 +136,4 @@ Notes:
 - If you omit `{ext}`, the script appends the correct extension automatically unless your template already ends with `.dump` or `.dump.gz`.
 - To track compression mode automatically in the name, include `{ext}`.
 
+```
