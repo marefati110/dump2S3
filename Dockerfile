@@ -1,33 +1,40 @@
+# Postgres version passed as build ARG
 ARG POSTGRES_VERSION
 FROM postgres:${POSTGRES_VERSION}-alpine
 
-COPY src/install.sh install.sh
-RUN sh install.sh && rm install.sh
+ARG TARGETARCH
+ENV TARGETARCH=${TARGETARCH}
 
-# Environment variables
-ENV POSTGRES_HOST ''
-ENV POSTGRES_PORT 5432
-ENV POSTGRES_USER ''
-ENV POSTGRES_PASSWORD ''
-ENV PGDUMP_EXTRA_OPTS ''
+# Copy scripts into container
+COPY src/install.sh /install.sh
+COPY src/run.sh /run.sh
+COPY src/env.sh /env.sh
+COPY src/backup.sh /backup.sh
 
-ENV S3_ACCESS_KEY_ID ''
-ENV S3_SECRET_ACCESS_KEY ''
-ENV S3_BUCKET ''
-ENV S3_REGION 'us-west-1'
-ENV S3_PATH 'backup'
-ENV S3_ENDPOINT ''
-ENV S3_S3V4 'no'
+RUN sh /install.sh && rm /install.sh \
+    && chmod +x /run.sh /env.sh /backup.sh
 
-ENV SCHEDULE ''
-ENV BACKUP_KEEP_DAYS ''
-ENV GZIP_ENABLED 'yes'
-ENV RUN_BACKUP_ON_START 'false'
-ENV WEBHOOK_URL ''
+# Environment variables with defaults
+ENV POSTGRES_HOST=localhost \
+    POSTGRES_PORT=5432 \
+    POSTGRES_USER=postgres \
+    POSTGRES_PASSWORD=postgres \
+    PGDUMP_EXTRA_OPTS="" \
+    \
+    S3_ACCESS_KEY_ID="" \
+    S3_SECRET_ACCESS_KEY="" \
+    S3_BUCKET="" \
+    S3_REGION="us-west-1" \
+    S3_PATH="backup" \
+    S3_ENDPOINT="" \
+    S3_S3V4="no" \
+    \
+    SCHEDULE="" \
+    BACKUP_KEEP_DAYS="" \
+    GZIP_ENABLED="yes" \
+    RUN_BACKUP_ON_START="false" \
+    WEBHOOK_URL=""
 
-COPY src/run.sh run.sh
-COPY src/env.sh env.sh
-COPY src/backup.sh backup.sh
 
 # Default command
 CMD ["sh", "/run.sh"]
