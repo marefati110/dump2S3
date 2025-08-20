@@ -70,10 +70,9 @@ pg_dump -h "$POSTGRES_HOST" \
 echo "Backup created"
 
 timestamp=$(date +"%Y-%m-%dT%H:%M:%S")
-s3_uri_base="s3://${S3_BUCKET}/${S3_PREFIX}/${POSTGRES_DATABASE}_${timestamp}.dump"
 
 local_file="db.dump"
-s3_uri="$s3_uri_base"
+# s3_uri will be set after determining compression/filenames
 # Gzip compression (default: enabled)
 case "${GZIP_ENABLED:-yes}" in
   [Tt][Rr][Uu][Ee]|[Yy][Ee][Ss]|1)
@@ -83,12 +82,32 @@ case "${GZIP_ENABLED:-yes}" in
     gzip -9 -c db.dump > db.dump.gz
     rm -f db.dump
     local_file="db.dump.gz"
-    s3_uri="${s3_uri_base}.gz"
+    # Determine final filename for compressed upload
+    if [ -n "${GZIP_FILENAME:-}" ]; then
+      s3_filename="$GZIP_FILENAME"
+      case "$s3_filename" in
+        *.gz) : ;;
+        *) s3_filename="${s3_filename}.gz" ;;
+      esac
+    else
+      s3_filename="${POSTGRES_DATABASE}_${timestamp}.dump.gz"
+    fi
+    s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${s3_filename}"
     echo "Backup compressed"
     ;;
   *)
     local_file="db.dump"
-    s3_uri="$s3_uri_base"
+    # Determine final filename for uncompressed upload
+    if [ -n "${DUMP_FILENAME:-}" ]; then
+      s3_filename="$DUMP_FILENAME"
+      case "$s3_filename" in
+        *.dump|*.dump.gz) : ;; # allow explicit .dump.gz though uncommon here
+        *) s3_filename="${s3_filename}.dump" ;;
+      esac
+    else
+      s3_filename="${POSTGRES_DATABASE}_${timestamp}.dump"
+    fi
+    s3_uri="s3://${S3_BUCKET}/${S3_PREFIX}/${s3_filename}"
     ;;
 esac
 

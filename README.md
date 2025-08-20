@@ -24,6 +24,9 @@ services:
       BACKUP_KEEP_DAYS: 7               # optional: delete old backups from S3
       GZIP_ENABLED: "yes"               # optional: yes/true/1 (default) or no/false/0
       WEBHOOK_URL: https://example.com/webhook # optional: POST status JSON here
+  # Optional custom filenames for uploads (pick one depending on compression)
+      DUMP_FILENAME: ""                 # optional: final name for uncompressed uploads, e.g. latest.dump
+      GZIP_FILENAME: ""                 # optional: final name for compressed uploads, e.g. latest.dump.gz
       S3_REGION: region
       S3_ACCESS_KEY_ID: key
       S3_SECRET_ACCESS_KEY: secret
@@ -44,6 +47,8 @@ services:
 | `BACKUP_KEEP_DAYS`     | ❌        | —       | Delete backups older than N days from S3                        |
 | `GZIP_ENABLED`         | ❌        | `yes`   | Compress backup (`yes`/`true`/`1`) or store plain dump          |
 | `WEBHOOK_URL`          | ❌        | —       | Send POST request with backup result                            |
+| `DUMP_FILENAME`        | ❌        | —       | Override final object name when compression is disabled (e.g., `latest.dump`) |
+| `GZIP_FILENAME`        | ❌        | —       | Override final object name when compression is enabled (e.g., `latest.dump.gz`) |
 | `S3_REGION`            | ✅        | —       | S3 region                                                       |
 | `S3_ACCESS_KEY_ID`     | ✅        | —       | S3 access key                                                   |
 | `S3_SECRET_ACCESS_KEY` | ✅        | —       | S3 secret key                                                   |
@@ -115,4 +120,16 @@ curl -X POST https://example.com/webhook \
         "host": "postgres",
         "timestamp": "2025-08-10T12:00:00Z"
       }'
+
+### 📄 Custom filenames
+
+You can override the final uploaded filename via environment variables:
+
+- When gzip is enabled (default), set `GZIP_ENABLED=yes` and optionally `GZIP_FILENAME` (e.g., `latest.dump.gz`).
+- When gzip is disabled, set `GZIP_ENABLED=no` and optionally `DUMP_FILENAME` (e.g., `latest.dump`).
+
+Notes:
+- If you omit these variables, the default pattern is `<db>_<timestamp>.dump[.gz]`.
+- If your override doesn’t include the proper extension, it will be appended automatically.
+- Using a static name (like `latest.dump.gz`) will overwrite the previous object in S3 on each run.
 
