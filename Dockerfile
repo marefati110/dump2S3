@@ -1,11 +1,10 @@
 ARG POSTGRES_VERSION
 FROM postgres:${POSTGRES_VERSION}-alpine
-ARG TARGETARCH
 
 COPY src/install.sh install.sh
 RUN sh install.sh && rm install.sh
 
-ENV POSTGRES_DATABASE ''
+# Environment variables
 ENV POSTGRES_HOST ''
 ENV POSTGRES_PORT 5432
 ENV POSTGRES_USER ''
@@ -30,4 +29,5 @@ COPY src/run.sh run.sh
 COPY src/env.sh env.sh
 COPY src/backup.sh backup.sh
 
-CMD ["sh", "run.sh"]
+# Default command
+CMD ["sh", "/run.sh"]
