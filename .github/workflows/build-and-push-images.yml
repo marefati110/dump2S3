@@ -33,32 +33,21 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Cache Docker layers
-        uses: actions/cache@v3
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ matrix.postgres }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-${{ matrix.postgres }}-
-
-      - name: Build and push Docker image
+      - name: Build and push Docker image (no cache)
         uses: docker/build-push-action@v3
         with:
           context: .
           push: true
-          tags: ${{ github.repository }}:pg-${{ matrix.postgres }}
+          pull: true
+          no-cache: true
+          platforms: linux/amd64,linux/arm64
           build-args: |
             POSTGRES_VERSION=${{ matrix.postgres }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          tags: |
+            ${{ github.repository }}:pg-${{ matrix.postgres }}
+            ${{ github.repository }}:pg-${{ matrix.postgres }}-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.version=${{ matrix.postgres }}
+            org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
-
-      - name: Move new cache
-        if: success()
-        run: |
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
